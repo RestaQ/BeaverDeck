@@ -1,0 +1,521 @@
+package api
+
+import (
+	"bufio"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+
+	"beaverdeck/internal/auth"
+	"beaverdeck/internal/kube"
+)
+
+func (s *Server) namespaces(w http.ResponseWriter, r *http.Request) {
+	if !s.cfg.AllowAllNamespaces {
+		items := []string{s.cfg.ManagedNamespace}
+		if !auth.IsAdmin(r.Context()) && !s.isNamespaceAllowedByRole(r, s.cfg.ManagedNamespace) {
+			items = []string{}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": items})
+		return
+	}
+
+	items, err := s.kube.ListNamespaces(r.Context())
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	if !auth.IsAdmin(r.Context()) {
+		filtered := make([]string, 0, len(items))
+		for _, ns := range items {
+			if s.isNamespaceAllowedByRole(r, ns) {
+				filtered = append(filtered, ns)
+			}
+		}
+		items = filtered
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (s *Server) workloads(w http.ResponseWriter, r *http.Request) {
+	writeNamespacedList(s, w, r, "workloads", func(ctx context.Context, ns string) ([]kube.Workload, error) {
+		return s.kube.ListWorkloads(ctx, ns)
+	}, func(a, b kube.Workload) bool {
+		if a.Namespace != b.Namespace {
+			return a.Namespace < b.Namespace
+		}
+		if a.Kind != b.Kind {
+			return a.Kind < b.Kind
+		}
+		return a.Name < b.Name
+	})
+}
+
+func (s *Server) pods(w http.ResponseWriter, r *http.Request) {
+	includeMetrics := r.URL.Query().Get("include_metrics") == "1"
+	writeNamespacedList(s, w, r, "pods", func(ctx context.Context, ns string) ([]kube.PodInfo, error) {
+		return s.kube.ListPods(ctx, ns, includeMetrics)
+	}, func(a, b kube.PodInfo) bool {
+		if a.Namespace != b.Namespace {
+			return a.Namespace < b.Namespace
+		}
+		return a.Name < b.Name
+	})
+}
+
+func (s *Server) nodes(w http.ResponseWriter, r *http.Request) {
+	writeClusterList(s, w, r, "nodes", func(ctx context.Context) ([]kube.NodeInfo, error) {
+		return s.kube.ListNodes(ctx)
+	})
+}
+
+func (s *Server) ingresses(w http.ResponseWriter, r *http.Request) {
+	writeNamespacedList(s, w, r, "ingresses", func(ctx context.Context, ns string) ([]kube.IngressInfo, error) {
+		return s.kube.ListIngresses(ctx, ns)
+	}, func(a, b kube.IngressInfo) bool {
+		if a.Namespace != b.Namespace {
+			return a.Namespace < b.Namespace
+		}
+		return a.Name < b.Name
+	})
+}
+
+func (s *Server) secrets(w http.ResponseWriter, r *http.Request) {
+	writeNamespacedList(s, w, r, "secrets", func(ctx context.Context, ns string) ([]kube.SecretInfo, error) {
+		return s.kube.ListSecrets(ctx, ns)
+	}, func(a, b kube.SecretInfo) bool {
+		if a.Namespace != b.Namespace {
+			return a.Namespace < b.Namespace
+		}
+		return a.Name < b.Name
+	})
+}
+
+func (s *Server) configMaps(w http.ResponseWriter, r *http.Request) {
+	writeNamespacedList(s, w, r, "configmaps", func(ctx context.Context, ns string) ([]kube.ConfigMapInfo, error) {
+		return s.kube.ListConfigMaps(ctx, ns)
+	}, func(a, b kube.ConfigMapInfo) bool {
+		if a.Namespace != b.Namespace {
+			return a.Namespace < b.Namespace
+		}
+		return a.Name < b.Name
+	})
+}
+
+func (s *Server) crds(w http.ResponseWriter, r *http.Request) {
+	writeClusterList(s, w, r, "crds", func(ctx context.Context) ([]kube.CRDInfo, error) {
+		return s.kube.ListCRDs(ctx)
+	})
+}
+
+func (s *Server) services(w http.ResponseWriter, r *http.Request) {
+	writeNamespacedList(s, w, r, "services", func(ctx context.Context, ns string) ([]kube.ServiceInfo, error) {
+		return s.kube.ListServices(ctx, ns)
+	}, func(a, b kube.ServiceInfo) bool {
+		if a.Namespace != b.Namespace {
+			return a.Namespace < b.Namespace
+		}
+		return a.Name < b.Name
+	})
+}
+
+func (s *Server) clusterRoles(w http.ResponseWriter, r *http.Request) {
+	writeClusterList(s, w, r, "clusterroles", func(ctx context.Context) ([]kube.ClusterRoleInfo, error) {
+		return s.kube.ListClusterRoles(ctx)
+	})
+}
+
+func (s *Server) clusterRoleBindings(w http.ResponseWriter, r *http.Request) {
+	writeClusterList(s, w, r, "clusterroles", func(ctx context.Context) ([]kube.ClusterRoleBindingInfo, error) {
+		return s.kube.ListClusterRoleBindings(ctx)
+	})
+}
+
+func (s *Server) rbacRoles(w http.ResponseWriter, r *http.Request) {
+	writeNamespacedList(s, w, r, "rbacroles", func(ctx context.Context, ns string) ([]kube.RoleInfo, error) {
+		return s.kube.ListRoles(ctx, ns)
+	}, func(a, b kube.RoleInfo) bool {
+		if a.Namespace != b.Namespace {
+			return a.Namespace < b.Namespace
+		}
+		return a.Name < b.Name
+	})
+}
+
+func (s *Server) rbacRoleBindings(w http.ResponseWriter, r *http.Request) {
+	writeNamespacedList(s, w, r, "rbacroles", func(ctx context.Context, ns string) ([]kube.RoleBindingInfo, error) {
+		return s.kube.ListRoleBindings(ctx, ns)
+	}, func(a, b kube.RoleBindingInfo) bool {
+		if a.Namespace != b.Namespace {
+			return a.Namespace < b.Namespace
+		}
+		return a.Name < b.Name
+	})
+}
+
+func (s *Server) serviceAccounts(w http.ResponseWriter, r *http.Request) {
+	writeNamespacedList(s, w, r, "serviceaccounts", func(ctx context.Context, ns string) ([]kube.ServiceAccountInfo, error) {
+		return s.kube.ListServiceAccounts(ctx, ns)
+	}, func(a, b kube.ServiceAccountInfo) bool {
+		if a.Namespace != b.Namespace {
+			return a.Namespace < b.Namespace
+		}
+		return a.Name < b.Name
+	})
+}
+
+func (s *Server) pvcs(w http.ResponseWriter, r *http.Request) {
+	if !s.requirePermission(w, r, "pvcs", "view") {
+		return
+	}
+	nsList, ok := s.namespacesFromQuery(r)
+	if !ok {
+		writeErr(w, http.StatusForbidden, fmt.Errorf("namespace is not allowed"))
+		return
+	}
+	items, err := s.kube.ListPVCs(r.Context(), nsList)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (s *Server) pvs(w http.ResponseWriter, r *http.Request) {
+	writeClusterList(s, w, r, "pvs", func(ctx context.Context) ([]kube.PVInfo, error) {
+		return s.kube.ListPVs(ctx)
+	})
+}
+
+func (s *Server) storageClasses(w http.ResponseWriter, r *http.Request) {
+	writeClusterList(s, w, r, "storageclasses", func(ctx context.Context) ([]kube.StorageClassInfo, error) {
+		return s.kube.ListStorageClasses(ctx)
+	})
+}
+
+func (s *Server) events(w http.ResponseWriter, r *http.Request) {
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	writeNamespacedList(s, w, r, "events", func(ctx context.Context, ns string) ([]kube.EventInfo, error) {
+		return s.kube.ListEvents(ctx, ns, limit)
+	}, func(a, b kube.EventInfo) bool {
+		return a.LastSeen > b.LastSeen
+	}, func(items []kube.EventInfo) []kube.EventInfo {
+		if limit > 0 && len(items) > limit {
+			return items[:limit]
+		}
+		return items
+	})
+}
+
+func (s *Server) insights(w http.ResponseWriter, r *http.Request) {
+	if !s.requirePermission(w, r, "insights", "view") {
+		return
+	}
+	nsList, ok := s.namespacesFromQuery(r)
+	if !ok {
+		writeErr(w, http.StatusForbidden, fmt.Errorf("namespace is not allowed"))
+		return
+	}
+	items, err := s.kube.BuildInsights(r.Context(), nsList)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	suppressedRows, err := s.audit.ListSuppressedAlerts(r.Context())
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	suppressedMap := make(map[string]struct{}, len(suppressedRows))
+	for _, item := range suppressedRows {
+		suppressedMap[item.Key] = struct{}{}
+	}
+
+	out := make([]kube.InsightAlert, 0, len(items))
+	alertCount := 0
+	activeCount := 0
+	okCount := 0
+	suppressedCount := 0
+	for _, item := range items {
+		if item.Status == "alert" {
+			alertCount++
+		} else {
+			okCount++
+		}
+		if _, ok := suppressedMap[item.Key]; ok {
+			item.Suppressed = true
+			if item.Status == "alert" {
+				suppressedCount++
+			}
+		}
+		if item.Status == "alert" && !item.Suppressed {
+			activeCount++
+		}
+		out = append(out, item)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": out,
+		"summary": map[string]any{
+			"total":      len(items),
+			"alerts":     alertCount,
+			"active":     activeCount,
+			"passing":    okCount,
+			"suppressed": suppressedCount,
+		},
+	})
+}
+
+type setInsightSuppressedRequest struct {
+	Key        string `json:"key"`
+	Suppressed bool   `json:"suppressed"`
+}
+
+func (s *Server) setInsightSuppressed(w http.ResponseWriter, r *http.Request) {
+	if !s.requirePermission(w, r, "insights", "edit") {
+		return
+	}
+	var req setInsightSuppressedRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	if err := s.audit.SetAlertSuppressed(r.Context(), strings.TrimSpace(req.Key), req.Suppressed); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
+}
+
+func (s *Server) manifest(w http.ResponseWriter, r *http.Request) {
+	ns, ok := s.namespaceFromQuery(r)
+	if !ok {
+		writeErr(w, http.StatusForbidden, fmt.Errorf("namespace is not allowed"))
+		return
+	}
+	kind := strings.TrimSpace(r.URL.Query().Get("kind"))
+	name := strings.TrimSpace(r.URL.Query().Get("name"))
+	if kind == "" || name == "" {
+		writeErr(w, http.StatusBadRequest, fmt.Errorf("kind and name are required"))
+		return
+	}
+	resource := kindToResource(kind)
+	if resource == "" {
+		writeErr(w, http.StatusBadRequest, fmt.Errorf("unsupported kind: %s", kind))
+		return
+	}
+	if !s.requirePermission(w, r, resource, "view") {
+		return
+	}
+	if s.isViewer(r) && resource == "secrets" {
+		writeErr(w, http.StatusForbidden, fmt.Errorf("viewer cannot view secret content"))
+		return
+	}
+
+	text, err := s.kube.GetManifestYAML(r.Context(), ns, kind, name)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"namespace": ns, "kind": kind, "name": name, "yaml": text})
+}
+
+func (s *Server) podLogs(w http.ResponseWriter, r *http.Request) {
+	if !s.requirePermission(w, r, "pods", "view") {
+		return
+	}
+	ns, ok := s.namespaceFromQuery(r)
+	if !ok {
+		writeErr(w, http.StatusForbidden, fmt.Errorf("namespace is not allowed"))
+		return
+	}
+	pod := strings.TrimSpace(r.URL.Query().Get("pod"))
+	if pod == "" {
+		writeErr(w, http.StatusBadRequest, fmt.Errorf("pod is required"))
+		return
+	}
+	container := strings.TrimSpace(r.URL.Query().Get("container"))
+	tail, _ := strconv.ParseInt(r.URL.Query().Get("tail"), 10, 64)
+	if tail <= 0 {
+		tail = 200
+	}
+	follow := strings.EqualFold(r.URL.Query().Get("follow"), "1") || strings.EqualFold(r.URL.Query().Get("follow"), "true")
+
+	if !follow {
+		text, err := s.kube.PodLogs(r.Context(), ns, pod, container, tail)
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, err)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		_, _ = w.Write([]byte(text))
+		return
+	}
+
+	stream, err := s.kube.FollowPodLogs(r.Context(), ns, pod, container, tail)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	defer stream.Close()
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		writeErr(w, http.StatusInternalServerError, fmt.Errorf("streaming unsupported"))
+		return
+	}
+
+	scanner := bufio.NewScanner(stream)
+	for scanner.Scan() {
+		_, _ = fmt.Fprintf(w, "data: %s\n\n", sanitizeSSE(scanner.Text()))
+		flusher.Flush()
+	}
+}
+
+func (s *Server) workloadLogs(w http.ResponseWriter, r *http.Request) {
+	if !s.requirePermission(w, r, "workloads", "view") {
+		return
+	}
+	ns, ok := s.namespaceFromQuery(r)
+	if !ok {
+		writeErr(w, http.StatusForbidden, fmt.Errorf("namespace is not allowed"))
+		return
+	}
+	kind := strings.TrimSpace(r.URL.Query().Get("kind"))
+	name := strings.TrimSpace(r.URL.Query().Get("name"))
+	if kind == "" || name == "" {
+		writeErr(w, http.StatusBadRequest, fmt.Errorf("kind and name are required"))
+		return
+	}
+	tail, _ := strconv.ParseInt(r.URL.Query().Get("tail"), 10, 64)
+	if tail <= 0 {
+		tail = 200
+	}
+	text, err := s.kube.WorkloadLogs(r.Context(), ns, kind, name, tail)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = w.Write([]byte(text))
+}
+
+func (s *Server) auditList(w http.ResponseWriter, r *http.Request) {
+	if !s.requirePermission(w, r, "audit", "view") {
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	items, err := s.audit.List(r.Context(), limit)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (s *Server) namespaceFromQuery(r *http.Request) (string, bool) {
+	ns := strings.TrimSpace(r.URL.Query().Get("namespace"))
+	if ns == "" {
+		ns = s.cfg.ManagedNamespace
+	}
+	return ns, s.namespaceAllowedForRequest(r, ns)
+}
+
+func (s *Server) namespacedQuery(r *http.Request) ([]string, error) {
+	nsList, ok := s.namespacesFromQuery(r)
+	if !ok {
+		return nil, fmt.Errorf("namespace is not allowed")
+	}
+	return nsList, nil
+}
+
+func writeNamespacedList[T any](
+	s *Server,
+	w http.ResponseWriter,
+	r *http.Request,
+	resource string,
+	fetch func(context.Context, string) ([]T, error),
+	less func(a, b T) bool,
+	postprocess ...func([]T) []T,
+) {
+	if !s.requirePermission(w, r, resource, "view") {
+		return
+	}
+
+	nsList, err := s.namespacedQuery(r)
+	if err != nil {
+		writeErr(w, http.StatusForbidden, err)
+		return
+	}
+
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
+	chunks := make([][]T, len(nsList))
+	var (
+		wg       sync.WaitGroup
+		firstErr error
+		errOnce  sync.Once
+	)
+	for i, ns := range nsList {
+		wg.Add(1)
+		go func(index int, namespace string) {
+			defer wg.Done()
+			nsItems, err := fetch(ctx, namespace)
+			if err != nil {
+				errOnce.Do(func() {
+					firstErr = err
+					cancel()
+				})
+				return
+			}
+			chunks[index] = nsItems
+		}(i, ns)
+	}
+	wg.Wait()
+	if firstErr != nil {
+		writeErr(w, http.StatusInternalServerError, firstErr)
+		return
+	}
+
+	items := make([]T, 0)
+	for _, chunk := range chunks {
+		items = append(items, chunk...)
+	}
+	if less != nil {
+		sort.Slice(items, func(i, j int) bool { return less(items[i], items[j]) })
+	}
+	for _, fn := range postprocess {
+		if fn != nil {
+			items = fn(items)
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func writeClusterList[T any](
+	s *Server,
+	w http.ResponseWriter,
+	r *http.Request,
+	resource string,
+	fetch func(context.Context) ([]T, error),
+) {
+	if !s.requirePermission(w, r, resource, "view") {
+		return
+	}
+	items, err := fetch(r.Context())
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}

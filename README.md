@@ -1,0 +1,121 @@
+# BeaverDeck
+
+BeaverDeck is a lightweight Kubernetes operations panel for inspecting cluster state, troubleshooting workloads, and performing common day-2 actions from a single web UI.
+
+- Quick start:
+Install via Helm chart:
+```bash
+helm install beaverdeck oci://ghcr.io/arequs/charts/beaverdeck
+```
+Check application logs to find autorization token for initial admin password setup:
+```bash
+kubectl logs deployments/beaverdeck
+```
+
+## What It Does
+
+From one interface, BeaverDeck lets you:
+
+- browse cluster objects: pods, workloads, nodes, services, ingresses, configmaps, secrets, PVCs, PVs, storage classes, CRDs, and events
+- inspect manifests as YAML
+- edit resources and apply changes through server-side apply
+- view pod and workload logs
+- open `exec` sessions into running pods
+- run common operational actions such as scale, restart, delete, evict, drain, and uncordon
+- review cluster health and operational insights
+- keep actions auditable and access controlled with users, roles, and namespace-scoped permissions
+
+## Architecture
+
+- Backend: Go
+- Frontend: React + Vite
+- Runtime mode: in-cluster only
+- Auth:
+  local username/password sessions
+  Google OAuth with Google Workspace group mapping
+  generic OpenID Connect OAuth with group mapping
+- Storage: SQLite in `DATA_DIR` for audit and user data
+
+## Repository Layout
+
+- `cmd/server/` — backend entrypoint and embedded web assets
+- `internal/api/` — HTTP and WebSocket handlers
+- `internal/kube/` — Kubernetes client logic
+- `internal/auth/` — auth middleware
+- `internal/audit/` — audit log storage
+- `internal/users/` — user and role storage
+- `ui/` — React application
+- `charts/beaverdeck/` — Helm chart
+
+## Local Development
+
+### Backend
+
+```bash
+go build -o ./bin/beaverdeck ./cmd/server
+```
+
+### Frontend
+
+```bash
+cd ui
+npm install
+npm run dev
+```
+
+### Production Frontend Build
+
+```bash
+cd ui
+npm run build
+```
+
+This writes the built assets into `cmd/server/web/dist` so they can be embedded into the Go binary.
+
+The Vite build is intentionally configured to write directly into `cmd/server/web/dist`. The Go server embeds `cmd/server/web/*`, so the frontend output path must stay aligned with that directory.
+
+## Docker Image
+
+Build a multi-arch image:
+
+```bash
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  -t <registry>/beaverdeck:<tag> \
+  --push \
+  .
+```
+
+### Notes About RBAC
+
+The chart installs a cluster-scoped RBAC policy because BeaverDeck can inspect and operate on cluster-wide resources such as:
+
+- nodes
+- PVs
+- storage classes
+- CRDs
+- namespaces
+- node proxy stats for storage usage
+- metrics API for node and pod usage
+
+If you want to reduce scope later, do it intentionally: the UI and API currently assume this broader visibility is available.
+
+## Runtime Configuration
+
+Environment variables used by the server:
+
+- `LISTEN_ADDR` — default `:8080`
+- `DATA_DIR` — default `/data`
+- `MANAGED_NAMESPACE` — defaults to the pod namespace if unset
+- `ALLOW_ALL_NAMESPACES` — default `false`
+
+## Default Access Pattern
+
+If you do not expose the app through ingress, port-forward it:
+
+```bash
+kubectl port-forward svc/beaverdeck-beaverdeck 8080:80
+```
+
+Then open `http://localhost:8080` and log in with the admin token.
+On first start, BeaverDeck writes a bootstrap token to the application log. Enter that token in the UI, then set the admin password.

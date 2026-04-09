@@ -1,0 +1,75 @@
+nameOverride: ""
+fullnameOverride: ""
+namespaceOverride: ""
+
+image:
+  repository: arequs/beaverdeck
+  tag: latest
+  pullPolicy: IfNotPresent
+
+listenAddr: ":8080"
+dataDir: /data
+clusterName: "Cluster name not set"
+managedNamespace: ""
+allowAllNamespaces: true
+
+podAnnotations: {}
+podLabels: {}
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+rbac:
+  create: true
+  clusterRoleName: ""
+
+persistence:
+  enabled: false
+  accessModes:
+    - ReadWriteOnce
+  size: 1Gi
+  storageClass: default
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+  annotations: {}
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+livenessProbe:
+  enabled: false
+  path: /api/health
+  initialDelaySeconds: 10
+  periodSeconds: 20
+
+readinessProbe:
+  enabled: false
+  path: /api/health
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+ingresses: []
+# Example:
+#ingresses:
+#  - nameSuffix: public
+#    enabled: true
+#    className: nginx
+#    annotations:
+#      nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+#      nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+#    hosts:
+#      - host: beaverdeck.com
+#        paths:
+#          - path: /
+#            pathType: Prefix
+#    tls: []
+
+extraEnv: []

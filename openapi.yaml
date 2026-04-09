@@ -1,0 +1,86 @@
+openapi: 3.0.3
+info:
+  title: BeaverDeck API
+  version: 0.1.0
+servers:
+  - url: /
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+paths:
+  /api/health:
+    get:
+      security: []
+      responses:
+        '200': { description: OK }
+  /api/namespaces:
+    get:
+      responses: { '200': { description: Namespaces } }
+  /api/workloads:
+    get:
+      parameters:
+        - in: query
+          name: namespace
+          schema: { type: string }
+      responses: { '200': { description: Workloads } }
+  /api/pods:
+    get:
+      parameters:
+        - in: query
+          name: namespace
+          schema: { type: string }
+      responses: { '200': { description: Pods } }
+  /api/podlogs:
+    get:
+      parameters:
+        - in: query
+          name: namespace
+          schema: { type: string }
+        - in: query
+          name: pod
+          required: true
+          schema: { type: string }
+        - in: query
+          name: container
+          schema: { type: string }
+        - in: query
+          name: tail
+          schema: { type: integer }
+        - in: query
+          name: follow
+          schema: { type: boolean }
+      responses: { '200': { description: Logs stream/text } }
+  /api/events:
+    get:
+      parameters:
+        - in: query
+          name: namespace
+          schema: { type: string }
+      responses: { '200': { description: Events } }
+  /api/deployments/scale:
+    post:
+      requestBody:
+        required: true
+      responses: { '200': { description: Scaled } }
+  /api/deployments/restart:
+    post:
+      requestBody:
+        required: true
+      responses: { '200': { description: Restart triggered } }
+  /api/pods/delete:
+    post:
+      requestBody:
+        required: true
+      responses: { '200': { description: Pod deleted } }
+  /api/apply:
+    post:
+      requestBody:
+        required: true
+      responses: { '200': { description: Apply result } }
+  /api/audit:
+    get:
+      responses: { '200': { description: Audit entries } }

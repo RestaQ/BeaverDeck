@@ -27,3 +27,4 @@ Thumbs.db
 beaver.yaml
 deploy.sh
 .helm-repo/
+artifacthub-repo.yml

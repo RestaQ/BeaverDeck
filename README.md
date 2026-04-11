@@ -1,3 +1,5 @@
+[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/beaverdeck)](https://artifacthub.io/packages/search?repo=beaverdeck)
+
 # BeaverDeck
 
 BeaverDeck is a lightweight Kubernetes operations panel for inspecting cluster state, troubleshooting workloads, and performing common day-2 actions from a single web UI.
@@ -7,12 +9,19 @@ Install via Helm chart:
 ```bash
 helm install beaverdeck oci://ghcr.io/arequs/charts/beaverdeck
 ```
-Check application logs to find autorization token for initial admin password setup:
+If you do not expose the app through ingress, port-forward it:
+```bash
+kubectl port-forward svc/beaverdeck-beaverdeck 8080:8080
+```
+Then open `http://localhost:8080` and log in with the admin token.
+On first start, BeaverDeck writes a bootstrap token to the application log. Enter that token in the UI, then set the admin password.
 ```bash
 kubectl logs deployments/beaverdeck
 ```
 
 ## What It Does
+
+![BeaverDeck Overview](docs/images/overview.png)
 
 From one interface, BeaverDeck lets you:
 
@@ -24,6 +33,8 @@ From one interface, BeaverDeck lets you:
 - run common operational actions such as scale, restart, delete, evict, drain, and uncordon
 - review cluster health and operational insights
 - keep actions auditable and access controlled with users, roles, and namespace-scoped permissions
+
+![BeaverDeck Insights](docs/images/insights.png)
 
 ## Architecture
 
@@ -47,45 +58,6 @@ From one interface, BeaverDeck lets you:
 - `ui/` — React application
 - `charts/beaverdeck/` — Helm chart
 
-## Local Development
-
-### Backend
-
-```bash
-go build -o ./bin/beaverdeck ./cmd/server
-```
-
-### Frontend
-
-```bash
-cd ui
-npm install
-npm run dev
-```
-
-### Production Frontend Build
-
-```bash
-cd ui
-npm run build
-```
-
-This writes the built assets into `cmd/server/web/dist` so they can be embedded into the Go binary.
-
-The Vite build is intentionally configured to write directly into `cmd/server/web/dist`. The Go server embeds `cmd/server/web/*`, so the frontend output path must stay aligned with that directory.
-
-## Docker Image
-
-Build a multi-arch image:
-
-```bash
-docker buildx build \
-  --platform linux/amd64,linux/arm64 \
-  -t <registry>/beaverdeck:<tag> \
-  --push \
-  .
-```
-
 ### Notes About RBAC
 
 The chart installs a cluster-scoped RBAC policy because BeaverDeck can inspect and operate on cluster-wide resources such as:
@@ -108,14 +80,3 @@ Environment variables used by the server:
 - `DATA_DIR` — default `/data`
 - `MANAGED_NAMESPACE` — defaults to the pod namespace if unset
 - `ALLOW_ALL_NAMESPACES` — default `false`
-
-## Default Access Pattern
-
-If you do not expose the app through ingress, port-forward it:
-
-```bash
-kubectl port-forward svc/beaverdeck-beaverdeck 8080:80
-```
-
-Then open `http://localhost:8080` and log in with the admin token.
-On first start, BeaverDeck writes a bootstrap token to the application log. Enter that token in the UI, then set the admin password.

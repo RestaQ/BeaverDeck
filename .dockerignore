@@ -19,3 +19,5 @@ charts/
 *.log
 .vscode/
 .idea/
+docs/
+artifacthub-repo.yml

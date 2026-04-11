@@ -82,6 +82,7 @@ body {
   color: var(--text);
   font-family: var(--font-sans);
   font-size: var(--font-size-body);
+  font-weight: 400;
   line-height: 1.45;
 }
 
@@ -127,8 +128,8 @@ body[data-theme="light"] .login-screen {
 }
 
 .login-logo {
-  width: 72px;
-  height: 72px;
+  width: 76px;
+  height: 76px;
   display: block;
   background: transparent;
   filter: drop-shadow(0 10px 20px rgba(13, 47, 88, 0.22));
@@ -149,7 +150,7 @@ body[data-theme="dark"] .login-logo {
 
 .login-brand-name {
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.01em;
 }
 
@@ -172,7 +173,7 @@ body[data-theme="light"] .ns-picker-popover {
   margin: 0;
   font-size: 22px;
   line-height: 1.2;
-  font-weight: 700;
+  font-weight: 600;
 }
 .login-card p { margin: 0; color: var(--muted); }
 
@@ -373,7 +374,7 @@ body[data-theme="light"] .sidebar {
 
 .brand-title {
   font-size: var(--font-size-title);
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.1;
 }
 
@@ -397,7 +398,7 @@ body[data-theme="light"] .sidebar {
 .small-label {
   color: var(--muted);
   font-size: var(--font-size-label);
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   margin-bottom: 6px;
@@ -475,7 +476,7 @@ body[data-theme="light"] .sidebar {
   margin-top: 6px;
   color: #7fb8e4;
   font-size: var(--font-size-label);
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
@@ -490,7 +491,7 @@ body[data-theme="light"] .sidebar {
   padding: 8px;
   cursor: pointer;
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.35;
 }
 
@@ -557,7 +558,7 @@ body[data-theme="light"] .nav-item.active {
 .topbar strong {
   font-size: var(--font-size-title);
   line-height: 1.2;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 body[data-theme="light"] .topbar {
@@ -776,7 +777,7 @@ textarea {
   border: 1px solid #475569;
   background: #1e293b;
   color: #cbd5e1;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .google-auth-badge.configured {
@@ -860,7 +861,7 @@ body[data-theme="light"] td {
   background: #5c3c09;
   color: #fde68a;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: help;
 }
 
@@ -874,7 +875,7 @@ body[data-theme="light"] td {
   background: #5c3c09;
   color: #fde68a;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
 }
 
@@ -943,7 +944,7 @@ th {
   top: 0;
   z-index: 5;
   font-size: var(--font-size-table-head);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 tbody tr { cursor: pointer; }
@@ -1036,7 +1037,7 @@ body[data-theme="light"] .action-menu-trigger.disabled {
   background: transparent;
   color: #c8d4e8;
   padding: 0;
-  font-weight: 600;
+  font-weight: 500;
   font-size: var(--font-size-table-head);
   line-height: 1.25;
 }
@@ -1656,7 +1657,7 @@ body[data-theme="light"] .modal-backdrop {
   margin: 0 0 8px;
   font-size: var(--font-size-title);
   line-height: 1.2;
-  font-weight: 700;
+  font-weight: 600;
 }
 .modal-muted { color: var(--muted); margin: 0 0 10px; }
 .modal-hint {
@@ -1739,7 +1740,7 @@ body[data-theme="light"] .modal-backdrop {
 
 .settings-form-label {
   color: var(--text);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .settings-form-textarea {
@@ -1797,7 +1798,7 @@ body[data-theme="light"] .modal-backdrop {
 
 .health-value {
   font-size: 26px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .role-modal {

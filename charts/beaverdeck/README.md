@@ -17,7 +17,7 @@ Create the target namespace with Helm and install the chart:
 
 ```bash
 helm upgrade --install beaverdeck oci://ghcr.io/arequs/charts/beaverdeck \
-  --version 1.1.0 \
+  --version 1.2.1 \
   --namespace beaverdeck \
   --create-namespace
 ```
@@ -59,7 +59,7 @@ helm upgrade --install beaverdeck oci://ghcr.io/arequs/charts/beaverdeck \
   --namespace beaverdeck \
   --create-namespace \
   --set image.repository=arequs/beaverdeck \
-  --set image.tag=1.0.0
+  --set image.tag=1.2.1
 ```
 
 ### Persist Data

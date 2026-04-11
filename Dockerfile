@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM --platform=$BUILDPLATFORM node:20-alpine AS webbuild
+FROM --platform=$BUILDPLATFORM node:22-alpine AS webbuild
 WORKDIR /web
 COPY ui/package.json ui/package-lock.json ./
 RUN npm ci

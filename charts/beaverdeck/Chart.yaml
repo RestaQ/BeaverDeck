@@ -2,7 +2,17 @@ apiVersion: v2
 name: beaverdeck
 description: Helm chart for BeaverDeck, a lightweight Kubernetes operations panel
 type: application
-version: 1.1.0
-appVersion: "1.2.0"
-home: https://github.com/arequs/beaverdeck
-icon: https://raw.githubusercontent.com/arequs/beaverdeck/main/ui/public/logo.png
+version: 1.2.1
+appVersion: "1.2.1"
+home: https://github.com/RestaQ/BeaverDeck
+icon: https://raw.githubusercontent.com/RestaQ/BeaverDeck/main/ui/public/logo.png
+annotations:
+  artifacthub.io/changes: |
+    - kind: changed
+      description: Updated the Kubernetes client stack to v0.35.3 and refreshed transitive Go dependencies.
+    - kind: changed
+      description: Upgraded golang.org/x/oauth2 to v0.30.0 and rebuilt on Go 1.26.
+    - kind: changed
+      description: Upgraded the frontend build toolchain to Vite 8 and Node.js 22.
+    - kind: security
+      description: Refreshed dependencies to address reported Go and frontend security findings.

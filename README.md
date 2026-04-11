@@ -51,6 +51,7 @@ From one interface, BeaverDeck lets you:
 ## Build Requirements
 
 - Go 1.26 or newer
+- Node.js 22 or newer for frontend builds
 
 ## Repository Layout
 

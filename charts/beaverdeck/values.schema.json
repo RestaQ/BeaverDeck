@@ -1,0 +1,400 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "nameOverride": {
+      "type": "string",
+      "description": "Override for the chart name portion of generated resource names."
+    },
+    "fullnameOverride": {
+      "type": "string",
+      "description": "Full override for generated resource names."
+    },
+    "namespaceOverride": {
+      "type": "string",
+      "description": "Override for the namespace used by rendered resources. Defaults to the Helm release namespace."
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Container image settings for BeaverDeck.",
+      "properties": {
+        "repository": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Container image repository."
+        },
+        "tag": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Container image tag."
+        },
+        "pullPolicy": {
+          "type": "string",
+          "enum": ["Always", "IfNotPresent", "Never"],
+          "description": "Image pull policy."
+        }
+      },
+      "required": ["repository", "tag", "pullPolicy"]
+    },
+    "listenAddr": {
+      "type": "string",
+      "minLength": 1,
+      "description": "HTTP listen address passed to LISTEN_ADDR."
+    },
+    "dataDir": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Directory used by BeaverDeck to store SQLite data."
+    },
+    "clusterName": {
+      "type": "string",
+      "description": "Cluster name shown in the UI header."
+    },
+    "managedNamespace": {
+      "type": "string",
+      "description": "Namespace BeaverDeck treats as its managed namespace. If empty, the pod namespace is used."
+    },
+    "allowAllNamespaces": {
+      "type": "boolean",
+      "description": "If true, BeaverDeck can operate across all namespaces allowed by Kubernetes RBAC."
+    },
+    "podAnnotations": {
+      "type": "object",
+      "description": "Extra pod annotations.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "podLabels": {
+      "type": "object",
+      "description": "Extra pod labels.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "ServiceAccount settings.",
+      "properties": {
+        "create": {
+          "type": "boolean",
+          "description": "Create a dedicated ServiceAccount."
+        },
+        "name": {
+          "type": "string",
+          "description": "Override ServiceAccount name. If empty, the chart fullname is used."
+        },
+        "annotations": {
+          "type": "object",
+          "description": "Extra ServiceAccount annotations.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["create", "name", "annotations"]
+    },
+    "rbac": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "RBAC settings.",
+      "properties": {
+        "create": {
+          "type": "boolean",
+          "description": "Create ClusterRole and ClusterRoleBinding for BeaverDeck."
+        },
+        "clusterRoleName": {
+          "type": "string",
+          "description": "Override ClusterRole name. If empty, the chart fullname is used."
+        }
+      },
+      "required": ["create", "clusterRoleName"]
+    },
+    "persistence": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Persistent storage configuration for BeaverDeck data.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Use a PersistentVolumeClaim instead of emptyDir."
+        },
+        "accessModes": {
+          "type": "array",
+          "description": "PVC access modes.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "size": {
+          "type": "string",
+          "minLength": 1,
+          "description": "PVC size request."
+        },
+        "storageClass": {
+          "type": "string",
+          "description": "StorageClass name for the PVC."
+        }
+      },
+      "required": ["enabled", "accessModes", "size", "storageClass"]
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Kubernetes Service configuration.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["ClusterIP", "NodePort", "LoadBalancer", "ExternalName"],
+          "description": "Service type."
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "Service port."
+        },
+        "targetPort": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "Container port exposed by BeaverDeck."
+        },
+        "annotations": {
+          "type": "object",
+          "description": "Extra Service annotations.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["type", "port", "targetPort", "annotations"]
+    },
+    "resources": {
+      "type": "object",
+      "description": "Container resource requests and limits.",
+      "additionalProperties": true
+    },
+    "nodeSelector": {
+      "type": "object",
+      "description": "Node selector for the pod.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "tolerations": {
+      "type": "array",
+      "description": "Pod tolerations.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "operator": {
+            "type": "string",
+            "enum": ["Exists", "Equal"]
+          },
+          "value": {
+            "type": "string"
+          },
+          "effect": {
+            "type": "string",
+            "enum": ["NoSchedule", "PreferNoSchedule", "NoExecute"]
+          },
+          "tolerationSeconds": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "affinity": {
+      "type": "object",
+      "description": "Pod affinity rules.",
+      "additionalProperties": true
+    },
+    "livenessProbe": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Liveness probe configuration.",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "initialDelaySeconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "periodSeconds": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": ["enabled", "path", "initialDelaySeconds", "periodSeconds"]
+    },
+    "readinessProbe": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Readiness probe configuration.",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "initialDelaySeconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "periodSeconds": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": ["enabled", "path", "initialDelaySeconds", "periodSeconds"]
+    },
+    "ingresses": {
+      "type": "array",
+      "description": "Ingress definitions for BeaverDeck.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "nameSuffix": {
+            "type": "string",
+            "description": "Optional suffix appended to the generated Ingress name."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Render this Ingress."
+          },
+          "className": {
+            "type": "string",
+            "description": "Ingress class name."
+          },
+          "annotations": {
+            "type": "object",
+            "description": "Ingress annotations.",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "hosts": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Ingress host definitions.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "host": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "paths": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "pathType": {
+                        "type": "string",
+                        "enum": ["Prefix", "Exact", "ImplementationSpecific"]
+                      }
+                    },
+                    "required": ["path"]
+                  }
+                }
+              },
+              "required": ["host", "paths"]
+            }
+          },
+          "tls": {
+            "type": "array",
+            "description": "Ingress TLS configuration.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "hosts": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "secretName": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "required": ["enabled", "hosts"]
+      }
+    },
+    "extraEnv": {
+      "type": "array",
+      "description": "Extra environment variables appended to the BeaverDeck container.",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "value": {
+            "type": "string"
+          },
+          "valueFrom": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": ["name"]
+      }
+    }
+  },
+  "required": [
+    "nameOverride",
+    "fullnameOverride",
+    "namespaceOverride",
+    "image",
+    "listenAddr",
+    "dataDir",
+    "clusterName",
+    "managedNamespace",
+    "allowAllNamespaces",
+    "podAnnotations",
+    "podLabels",
+    "serviceAccount",
+    "rbac",
+    "persistence",
+    "service",
+    "resources",
+    "nodeSelector",
+    "tolerations",
+    "affinity",
+    "livenessProbe",
+    "readinessProbe",
+    "ingresses",
+    "extraEnv"
+  ]
+}

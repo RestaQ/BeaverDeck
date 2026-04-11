@@ -4,7 +4,7 @@ namespaceOverride: ""
 
 image:
   repository: arequs/beaverdeck
-  tag: latest
+  tag: 1.2.0
   pullPolicy: IfNotPresent
 
 listenAddr: ":8080"
@@ -45,13 +45,13 @@ tolerations: []
 affinity: {}
 
 livenessProbe:
-  enabled: false
+  enabled: true
   path: /api/health
   initialDelaySeconds: 10
   periodSeconds: 20
 
 readinessProbe:
-  enabled: false
+  enabled: true
   path: /api/health
   initialDelaySeconds: 5
   periodSeconds: 10

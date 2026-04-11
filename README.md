@@ -18,6 +18,7 @@ On first start, BeaverDeck writes a bootstrap token to the application log. Ente
 ```bash
 kubectl logs deployments/beaverdeck
 ```
+See chart details at [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/beaverdeck)](https://artifacthub.io/packages/search?repo=beaverdeck)
 
 ## What It Does
 
@@ -47,6 +48,10 @@ From one interface, BeaverDeck lets you:
   generic OpenID Connect OAuth with group mapping
 - Storage: SQLite in `DATA_DIR` for audit and user data
 
+## Build Requirements
+
+- Go 1.26 or newer
+
 ## Repository Layout
 
 - `cmd/server/` — backend entrypoint and embedded web assets
@@ -71,12 +76,3 @@ The chart installs a cluster-scoped RBAC policy because BeaverDeck can inspect a
 - metrics API for node and pod usage
 
 If you want to reduce scope later, do it intentionally: the UI and API currently assume this broader visibility is available.
-
-## Runtime Configuration
-
-Environment variables used by the server:
-
-- `LISTEN_ADDR` — default `:8080`
-- `DATA_DIR` — default `/data`
-- `MANAGED_NAMESPACE` — defaults to the pod namespace if unset
-- `ALLOW_ALL_NAMESPACES` — default `false`

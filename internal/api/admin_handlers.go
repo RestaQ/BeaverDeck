@@ -20,13 +20,20 @@ func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 		return
 	}
+	updateStatus, err := s.users.GetUpdateCheckStatus(r.Context())
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"username":    u.Username,
-		"role":        u.Role,
-		"roleMode":    u.RoleMode,
-		"authSource":  u.AuthSource,
-		"permissions": u.Permissions,
-		"clusterName": s.cfg.ClusterName,
+		"username":      u.Username,
+		"role":          u.Role,
+		"roleMode":      u.RoleMode,
+		"authSource":    u.AuthSource,
+		"permissions":   u.Permissions,
+		"clusterName":   s.cfg.ClusterName,
+		"appVersion":    s.cfg.AppVersion,
+		"latestVersion": updateStatus.LatestVersion,
 	})
 }
 

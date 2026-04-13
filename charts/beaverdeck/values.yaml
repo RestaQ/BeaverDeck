@@ -46,30 +46,23 @@ affinity: {}
 
 livenessProbe:
   enabled: true
-  path: /api/health
+  path: /healthz
   initialDelaySeconds: 10
   periodSeconds: 20
 
 readinessProbe:
   enabled: true
-  path: /api/health
+  path: /healthz
   initialDelaySeconds: 5
   periodSeconds: 10
 
-ingresses: []
-# Example:
-#ingresses:
-#  - nameSuffix: public
-#    enabled: true
-#    className: nginx
-#    annotations:
-#      nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-#      nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-#    hosts:
-#      - host: beaverdeck.com
-#        paths:
-#          - path: /
-#            pathType: Prefix
-#    tls: []
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: ""
+  path: /
+  pathType: Prefix
+  tls: []
 
 extraEnv: []

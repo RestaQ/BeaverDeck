@@ -14,52 +14,56 @@ export function LoginScreen({
   startGoogleLogin,
   startOIDCLogin,
   authError,
-  showInputs = true
+  showInputs = true,
+  appVersion = ''
 }) {
   return (
     <div className="login-screen">
-      <div className="login-card">
-        <div className="login-brand-lockup">
-          <img className="login-logo" src="/logo.png" alt="" aria-hidden="true" />
-          <div className="login-brand-name">BeaverDeck</div>
+      <div className="login-layout">
+        <div className="login-card">
+          <div className="login-brand-lockup">
+            <img className="login-logo" src="/logo.png" alt="" aria-hidden="true" />
+            <div className="login-brand-name">BeaverDeck</div>
+          </div>
+          {title ? <h1>{title}</h1> : null}
+          {message ? <p>{message}</p> : null}
+          {showInputs ? (
+            <>
+              <input
+                type="text"
+                value={usernameInput}
+                onChange={(e) => setUsernameInput(e.target.value)}
+                placeholder="Username"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') login();
+                }}
+              />
+              <PasswordField
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                placeholder="Password"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') login();
+                }}
+              />
+              <button onClick={login}>Login</button>
+              {authProviders.google?.enabled ? (
+                <button className="secondary google-login-button" onClick={startGoogleLogin}>
+                  <GoogleIcon />
+                  Sign in with Google{authProviders.google?.hosted_domain ? ` (${authProviders.google.hosted_domain})` : ''}
+                </button>
+              ) : null}
+              {authProviders.oidc?.enabled ? (
+                <button className="secondary google-login-button" onClick={startOIDCLogin}>
+                  <span className="oauth-icon-wrap"><OAuthIcon /></span>
+                  Sign in with {authProviders.oidc?.provider_name || 'Custom OAuth'}{authProviders.oidc?.hosted_domain ? ` (${authProviders.oidc.hosted_domain})` : ''}
+                </button>
+              ) : null}
+              {authError ? <div className="error-text">{authError}</div> : null}
+            </>
+          ) : null}
         </div>
-        {title ? <h1>{title}</h1> : null}
-        {message ? <p>{message}</p> : null}
-        {showInputs ? (
-          <>
-            <input
-              type="text"
-              value={usernameInput}
-              onChange={(e) => setUsernameInput(e.target.value)}
-              placeholder="Username"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') login();
-              }}
-            />
-            <PasswordField
-              value={passwordInput}
-              onChange={(e) => setPasswordInput(e.target.value)}
-              placeholder="Password"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') login();
-              }}
-            />
-            <button onClick={login}>Login</button>
-            {authProviders.google?.enabled ? (
-              <button className="secondary google-login-button" onClick={startGoogleLogin}>
-                <GoogleIcon />
-                Sign in with Google{authProviders.google?.hosted_domain ? ` (${authProviders.google.hosted_domain})` : ''}
-              </button>
-            ) : null}
-            {authProviders.oidc?.enabled ? (
-              <button className="secondary google-login-button" onClick={startOIDCLogin}>
-                <span className="oauth-icon-wrap"><OAuthIcon /></span>
-                Sign in with {authProviders.oidc?.provider_name || 'Custom OAuth'}{authProviders.oidc?.hosted_domain ? ` (${authProviders.oidc.hosted_domain})` : ''}
-              </button>
-            ) : null}
-            {authError ? <div className="error-text">{authError}</div> : null}
-          </>
-        ) : null}
+        {appVersion ? <div className="small-hint login-version">Version {appVersion}</div> : null}
       </div>
     </div>
   );

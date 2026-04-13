@@ -45,12 +45,16 @@ spec:
               value: {{ .Values.listenAddr | quote }}
             - name: DATA_DIR
               value: {{ .Values.dataDir | quote }}
+            - name: APP_VERSION
+              value: {{ .Values.image.tag | quote }}
             - name: CLUSTER_NAME
               value: {{ .Values.clusterName | quote }}
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            - name: SERVICE_ACCOUNT_NAME
+              value: {{ include "beaverdeck.serviceAccountName" . | quote }}
             - name: MANAGED_NAMESPACE
               {{- if .Values.managedNamespace }}
               value: {{ .Values.managedNamespace | quote }}

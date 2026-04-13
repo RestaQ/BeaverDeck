@@ -42,7 +42,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/auth/oidc/start", s.authOIDCStart)
 	mux.HandleFunc("GET /api/auth/oidc/callback", s.authOIDCCallback)
 
-	mux.HandleFunc("GET /api/health", s.health)
+	mux.HandleFunc("GET /healthz", s.health)
 	mux.HandleFunc("GET /api/me", s.me)
 	mux.HandleFunc("GET /api/admin/users", s.adminUsersList)
 	mux.HandleFunc("POST /api/admin/users", s.adminUsersCreate)

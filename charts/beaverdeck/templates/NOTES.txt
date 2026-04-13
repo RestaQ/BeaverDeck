@@ -1,5 +1,5 @@
 1. Get the application URL by running these commands:
-{{- if .Values.ingresses }}
+{{- if .Values.ingress.enabled }}
   Check the configured ingress hosts in values.yaml.
 {{- else }}
   kubectl -n {{ include "beaverdeck.namespace" . }} port-forward svc/{{ include "beaverdeck.fullname" . }} 8080:{{ .Values.service.port }}

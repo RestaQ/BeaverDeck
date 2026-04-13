@@ -473,6 +473,14 @@ export function ProfileModal({ open, onClose, currentUser, selectedNamespaces, t
             <div>{token ? `••••••••${token.slice(-4)}` : '-'}</div>
           </div>
           <div>
+            <div className="small-label">Application Version</div>
+            <div>{currentUser.appVersion || '-'}</div>
+          </div>
+          <div>
+            <div className="small-label">Latest Version</div>
+            <div>{currentUser.latestVersion || '-'}</div>
+          </div>
+          <div>
             <div className="small-label">Theme</div>
             <select value={themePreference} onChange={(e) => onThemeChange(e.target.value)}>
               {themeOptions.map((option) => (

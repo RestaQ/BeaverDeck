@@ -4,6 +4,7 @@ import { AUTH_STORAGE_KEY, NAMESPACE_STORAGE_KEY } from '../lib/appConstants.js'
 import { defaultRolePermissions, getStoredThemePreference, normalizeRolePermissions } from '../lib/appUtils.js';
 
 const DEFAULT_AUTH_PROVIDERS = {
+  appVersion: '',
   local: true,
   google: { enabled: false, hosted_domain: '' },
   oidc: { enabled: false, provider_name: 'Custom OAuth', hosted_domain: '' }
@@ -19,6 +20,8 @@ const DEFAULT_CURRENT_USER = {
   roleMode: 'viewer',
   authSource: 'local',
   clusterName: '',
+  appVersion: '',
+  latestVersion: '',
   permissions: defaultRolePermissions()
 };
 
@@ -92,6 +95,7 @@ export default function useAuthSession({
     try {
       const data = await publicApi('/api/auth/providers');
       setAuthProviders({
+        appVersion: data.appVersion || '',
         local: data.local !== false,
         google: {
           enabled: Boolean(data.google?.enabled),
@@ -143,6 +147,8 @@ export default function useAuthSession({
       roleMode: me.roleMode || 'viewer',
       authSource: me.authSource || 'local',
       clusterName: me.clusterName || '',
+      appVersion: me.appVersion || '',
+      latestVersion: me.latestVersion || '',
       permissions: normalizeRolePermissions(me.permissions)
     });
     setThemePreference(getStoredThemePreference(nextUsername));

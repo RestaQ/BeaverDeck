@@ -108,6 +108,12 @@ body[data-theme="light"] .login-screen {
   background: radial-gradient(circle at calc(50% - 170px) calc(50% - 120px), #d7efff 0%, #eef6fd 68%);
 }
 
+.login-layout {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+}
+
 .login-card {
   width: min(430px, 92vw);
   max-height: 90vh;
@@ -118,6 +124,10 @@ body[data-theme="light"] .login-screen {
   display: grid;
   gap: 10px;
   overflow: auto;
+}
+
+.login-version {
+  text-align: center;
 }
 
 .login-brand-lockup {

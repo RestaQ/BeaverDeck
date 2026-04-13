@@ -9,12 +9,12 @@ icon: https://raw.githubusercontent.com/RestaQ/BeaverDeck/main/ui/public/logo.pn
 annotations:
   artifacthub.io/changes: |
     - kind: changed
-      description: Breaking chart change: replaced the ingresses list with a standard single ingress object.
+      description: "Breaking chart change: replaced the ingresses list with a standard single ingress object."
     - kind: changed
-      description: Updated the Kubernetes client stack to v0.35.3 and refreshed transitive Go dependencies.
+      description: "Updated the Kubernetes client stack to v0.35.3 and refreshed transitive Go dependencies."
     - kind: changed
-      description: Upgraded golang.org/x/oauth2 to v0.30.0 and rebuilt on Go 1.26.
+      description: "Upgraded golang.org/x/oauth2 to v0.30.0 and rebuilt on Go 1.26."
     - kind: changed
-      description: Upgraded the frontend build toolchain to Vite 8 and Node.js 22.
+      description: "Upgraded the frontend build toolchain to Vite 8 and Node.js 22."
     - kind: security
-      description: Refreshed dependencies to address reported Go and frontend security findings.
+      description: "Refreshed dependencies to address reported Go and frontend security findings."

@@ -5,10 +5,16 @@
 BeaverDeck is a lightweight Kubernetes operations panel for inspecting cluster state, troubleshooting workloads, and performing common day-2 actions from a single web UI.
 
 - Quick start:
-Install via Helm chart:
+Install via Helm chart. Strongly recommended: enable persistent storage so BeaverDeck does not lose users, roles, audit records, and other stored settings after pod reschedules or upgrades.
 ```bash
-helm install beaverdeck oci://ghcr.io/arequs/charts/beaverdeck
+helm upgrade --install beaverdeck oci://ghcr.io/arequs/charts/beaverdeck \
+  --namespace beaverdeck \
+  --create-namespace \
+  --set persistence.enabled=true \
+  --set persistence.size=5Gi \
+  --set persistence.storageClass=standard
 ```
+Change `persistence.storageClass` to the storage class available in your cluster.
 If you do not expose the app through ingress, port-forward it:
 ```bash
 kubectl port-forward svc/beaverdeck-beaverdeck 8080:8080
@@ -16,7 +22,7 @@ kubectl port-forward svc/beaverdeck-beaverdeck 8080:8080
 Then open `http://localhost:8080` and log in with the admin token.
 On first start, BeaverDeck writes a bootstrap token to the application log. Enter that token in the UI, then set the admin password.
 ```bash
-kubectl logs deployments/beaverdeck
+kubectl -n beaverdeck logs deployment/beaverdeck
 ```
 See chart details at [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/beaverdeck)](https://artifacthub.io/packages/search?repo=beaverdeck)
 
@@ -47,6 +53,8 @@ From one interface, BeaverDeck lets you:
   Google OAuth with Google Workspace group mapping
   generic OpenID Connect OAuth with group mapping
 - Storage: SQLite in `DATA_DIR` for audit and user data
+
+BeaverDeck can run without persistence, but that mode is best treated as temporary or demo-only. For normal use, back `DATA_DIR` with a PVC.
 
 ## Build Requirements
 

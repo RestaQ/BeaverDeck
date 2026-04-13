@@ -15,6 +15,7 @@ import (
 	"beaverdeck/internal/auth"
 	"beaverdeck/internal/config"
 	"beaverdeck/internal/kube"
+	"beaverdeck/internal/updatecheck"
 	"beaverdeck/internal/users"
 )
 
@@ -58,6 +59,10 @@ func main() {
 			routes.ServeHTTP(w, r)
 			return
 		}
+		if r.URL.Path == "/healthz" {
+			routes.ServeHTTP(w, r)
+			return
+		}
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			secured.ServeHTTP(w, r)
 			return
@@ -72,6 +77,7 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	updatecheck.Start(ctx, cfg, kc, userStore)
 
 	go func() {
 		log.Printf("beaverdeck listening on %s (managed namespace=%s allow_all=%v)", cfg.ListenAddr, cfg.ManagedNamespace, cfg.AllowAllNamespaces)

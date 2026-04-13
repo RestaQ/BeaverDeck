@@ -2060,6 +2060,7 @@ export default function App() {
         startOIDCLogin={startOIDCLogin}
         authError=""
         showInputs={false}
+        appVersion={authProviders.appVersion || ''}
       />
     );
   }
@@ -2109,6 +2110,7 @@ export default function App() {
         startGoogleLogin={startGoogleLogin}
         startOIDCLogin={startOIDCLogin}
         authError={authError}
+        appVersion={authProviders.appVersion || ''}
       />
     );
   }

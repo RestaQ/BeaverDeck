@@ -265,89 +265,61 @@
       },
       "required": ["enabled", "path", "initialDelaySeconds", "periodSeconds"]
     },
-    "ingresses": {
-      "type": "array",
-      "description": "Ingress definitions for BeaverDeck.",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "nameSuffix": {
-            "type": "string",
-            "description": "Optional suffix appended to the generated Ingress name."
-          },
-          "enabled": {
-            "type": "boolean",
-            "description": "Render this Ingress."
-          },
-          "className": {
-            "type": "string",
-            "description": "Ingress class name."
-          },
-          "annotations": {
+    "ingress": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Single Ingress definition for BeaverDeck.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Render the Ingress."
+        },
+        "className": {
+          "type": "string",
+          "description": "Ingress class name."
+        },
+        "annotations": {
+          "type": "object",
+          "description": "Ingress annotations.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "host": {
+          "type": "string",
+          "description": "Ingress host. Leave empty to omit host matching."
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Ingress path."
+        },
+        "pathType": {
+          "type": "string",
+          "enum": ["Prefix", "Exact", "ImplementationSpecific"],
+          "description": "Ingress pathType."
+        },
+        "tls": {
+          "type": "array",
+          "description": "Ingress TLS configuration.",
+          "items": {
             "type": "object",
-            "description": "Ingress annotations.",
-            "additionalProperties": {
-              "type": "string"
-            }
-          },
-          "hosts": {
-            "type": "array",
-            "minItems": 1,
-            "description": "Ingress host definitions.",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "host": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "paths": {
-                  "type": "array",
-                  "minItems": 1,
-                  "items": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                      "path": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "pathType": {
-                        "type": "string",
-                        "enum": ["Prefix", "Exact", "ImplementationSpecific"]
-                      }
-                    },
-                    "required": ["path"]
-                  }
-                }
-              },
-              "required": ["host", "paths"]
-            }
-          },
-          "tls": {
-            "type": "array",
-            "description": "Ingress TLS configuration.",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "hosts": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "secretName": {
+            "additionalProperties": false,
+            "properties": {
+              "hosts": {
+                "type": "array",
+                "items": {
                   "type": "string"
                 }
+              },
+              "secretName": {
+                "type": "string"
               }
             }
           }
-        },
-        "required": ["enabled", "hosts"]
-      }
+        }
+      },
+      "required": ["enabled", "className", "annotations", "host", "path", "pathType", "tls"]
     },
     "extraEnv": {
       "type": "array",
@@ -394,7 +366,7 @@
     "affinity",
     "livenessProbe",
     "readinessProbe",
-    "ingresses",
+    "ingress",
     "extraEnv"
   ]
 }

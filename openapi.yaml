@@ -12,7 +12,7 @@ components:
       type: http
       scheme: bearer
 paths:
-  /api/health:
+  /healthz:
     get:
       security: []
       responses:

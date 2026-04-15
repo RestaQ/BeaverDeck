@@ -92,6 +92,10 @@ function bottomTabResourceKey(namespace, kind, name) {
   return `${normalizedNamespace}:${normalizedKind}:${String(name || '').trim()}`;
 }
 
+function podRefKey(namespace, name) {
+  return `${String(namespace || '').trim()}/${String(name || '').trim()}`;
+}
+
 export default function App() {
   const [status, setStatus] = useState('');
   const [bottomNotice, setBottomNotice] = useState(null);
@@ -190,6 +194,7 @@ export default function App() {
   const [podsAutoRefreshEnabled, setPodsAutoRefreshEnabled] = useState(true);
   const [podsAutoRefreshSeconds, setPodsAutoRefreshSeconds] = useState(15);
   const [selectedPod, setSelectedPod] = useState(null);
+  const [selectedPodRefs, setSelectedPodRefs] = useState([]);
 
   const [deploymentName, setDeploymentName] = useState('');
   const [deploymentNamespace, setDeploymentNamespace] = useState('');
@@ -223,6 +228,7 @@ export default function App() {
   const logsOutputRef = useRef(null);
   const logsEndRef = useRef(null);
   const forceLogScrollRef = useRef(false);
+  const pendingLogPrependRef = useRef(null);
   const bottomNoticeTimerRef = useRef(null);
 
   const {
@@ -335,6 +341,7 @@ export default function App() {
       resetOIDCMappingForm();
       setBottomTabs([]);
       setActiveBottomTabId('');
+      setSelectedPodRefs([]);
     }
   });
   const isAdmin = currentUser.roleMode === 'admin';
@@ -399,6 +406,11 @@ export default function App() {
     if (!q) return pods;
     return pods.filter((p) => p.name.toLowerCase().includes(q));
   }, [pods, podSearch]);
+  const selectedPodRefSet = useMemo(() => new Set(selectedPodRefs), [selectedPodRefs]);
+  const selectedPods = useMemo(
+    () => pods.filter((pod) => selectedPodRefSet.has(podRefKey(pod.namespace, pod.name))),
+    [pods, selectedPodRefSet]
+  );
 
   function filterRowsByQuery(rows, query, fields) {
     const q = String(query || '').trim().toLowerCase();
@@ -478,6 +490,24 @@ export default function App() {
   useEffect(() => {
     bottomTabsRef.current = bottomTabs;
   }, [bottomTabs]);
+
+  useEffect(() => {
+    const availableRefs = new Set(pods.map((pod) => podRefKey(pod.namespace, pod.name)));
+    setSelectedPodRefs((prev) => {
+      const next = prev.filter((ref) => availableRefs.has(ref));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [pods]);
+
+  useEffect(() => {
+    setSelectedPodRefs([]);
+  }, [namespaceQuery]);
+
+  useEffect(() => {
+    if (selectedPodRefs.length > 0 && selectedPod) {
+      setSelectedPod(null);
+    }
+  }, [selectedPodRefs, selectedPod]);
 
   useEffect(() => {
     if (!isLoggedIn || !username) return;
@@ -644,6 +674,23 @@ export default function App() {
     });
     return () => window.cancelAnimationFrame(rafId);
   }, [activeBottomTab?.id, activeBottomTab?.type, activeBottomTab?.follow, activeBottomTab?.content, activeBottomTab?.loading]);
+
+  useEffect(() => {
+    const pending = pendingLogPrependRef.current;
+    if (!pending || !activeBottomTab || activeBottomTab.type !== 'logs' || activeBottomTab.id !== pending.tabId || activeBottomTab.loadingOlder) {
+      return undefined;
+    }
+    const wrap = logsOutputRef.current;
+    if (!wrap) {
+      pendingLogPrependRef.current = null;
+      return undefined;
+    }
+    const rafId = window.requestAnimationFrame(() => {
+      wrap.scrollTop = Math.max(0, wrap.scrollHeight - pending.prevHeight + pending.prevTop);
+      pendingLogPrependRef.current = null;
+    });
+    return () => window.cancelAnimationFrame(rafId);
+  }, [activeBottomTab?.id, activeBottomTab?.type, activeBottomTab?.content, activeBottomTab?.loadingOlder]);
 
   function getSorted(nav, rows) {
     const cfg = sortByNav[nav] || SORT_DEFAULTS[nav] || { key: 'name', dir: 'asc' };
@@ -1115,6 +1162,43 @@ export default function App() {
     setActiveNav('pods');
   }
 
+  function togglePodRefSelection(pod) {
+    const ref = podRefKey(pod.namespace, pod.name);
+    setSelectedPodRefs((prev) => (
+      prev.includes(ref)
+        ? prev.filter((item) => item !== ref)
+        : [...prev, ref]
+    ));
+  }
+
+  function setPodRefsSelection(podsToUpdate, shouldSelect) {
+    const refs = podsToUpdate.map((pod) => podRefKey(pod.namespace, pod.name));
+    setSelectedPodRefs((prev) => {
+      const next = new Set(prev);
+      refs.forEach((ref) => {
+        if (shouldSelect) {
+          next.add(ref);
+        } else {
+          next.delete(ref);
+        }
+      });
+      return Array.from(next);
+    });
+  }
+
+  function selectedPodActionPermission(action) {
+    if (selectedPods.length === 0) {
+      return { allowed: false, reason: 'Select at least one pod' };
+    }
+    for (const pod of selectedPods) {
+      const check = permissionInfo('pods', action, pod.namespace);
+      if (!check.allowed) {
+        return { allowed: false, reason: `${pod.namespace}/${pod.name}: ${check.reason}` };
+      }
+    }
+    return { allowed: true, reason: '' };
+  }
+
   function upsertTab(tab, makeActive = true) {
     setBottomTabs((prev) => {
       const idx = prev.findIndex((x) => x.id === tab.id);
@@ -1127,6 +1211,9 @@ export default function App() {
   }
 
   function closeTab(tabId) {
+    if (pendingLogPrependRef.current?.tabId === tabId) {
+      pendingLogPrependRef.current = null;
+    }
     const ws = execSocketsRef.current[tabId];
     if (ws) {
       ws.onopen = null;
@@ -1189,6 +1276,101 @@ export default function App() {
     if (content && typeof content.scrollTop === 'number') {
       content.scrollTop = content.scrollHeight;
     }
+  }
+
+  async function loadOlderLogs(tabId) {
+    const tab = bottomTabsRef.current.find((item) => item.id === tabId);
+    const wrap = logsOutputRef.current;
+    if (!tab || tab.type !== 'logs' || tab.loading || tab.loadingOlder || tab.canLoadOlder === false || !wrap) {
+      return;
+    }
+
+    const currentTail = Math.max(Number(tab.tail || 0), 0);
+    const nextTail = Math.min(Math.max(currentTail * 2, currentTail + 400, 400), 20000);
+    if (nextTail <= currentTail) {
+      return;
+    }
+
+    pendingLogPrependRef.current = {
+      tabId,
+      prevHeight: wrap.scrollHeight,
+      prevTop: wrap.scrollTop
+    };
+    const nextTab = { ...tab, tail: nextTail, follow: false, loadingOlder: true, error: '' };
+    upsertTab(nextTab, false);
+    await refreshLogTab(tabId, true, {
+      preserveScrollPosition: true,
+      previousContent: String(tab.content || ''),
+      tabOverride: nextTab
+    });
+  }
+
+  function handleLogsScroll(event) {
+    const wrap = event.currentTarget;
+    const tab = bottomTabsRef.current.find((item) => item.id === activeBottomTabId);
+    if (!tab || tab.type !== 'logs') {
+      return;
+    }
+    if (tab.follow && wrap.scrollTop + wrap.clientHeight < wrap.scrollHeight - 24) {
+      upsertTab({ id: tab.id, follow: false }, false);
+    }
+    if (wrap.scrollTop <= 0) {
+      void loadOlderLogs(tab.id);
+    }
+  }
+
+  async function runBatchPodAction(actionLabel, podsToProcess, runner) {
+    if (podsToProcess.length === 0) {
+      return;
+    }
+
+    const failed = [];
+    for (const pod of podsToProcess) {
+      try {
+        // Keep batch mutations sequential to avoid hammering the API server.
+        // eslint-disable-next-line no-await-in-loop
+        await runner(pod);
+      } catch (err) {
+        failed.push({ pod, message: err.message || String(err) });
+      }
+    }
+
+    const successfulPods = podsToProcess.filter(
+      (pod) => !failed.some((item) => item.pod.namespace === pod.namespace && item.pod.name === pod.name)
+    );
+
+    if (actionLabel === 'Delete') {
+      const deletedRefs = new Set(
+        successfulPods.map((pod) => podRefKey(pod.namespace, pod.name))
+      );
+      if (selectedPod && deletedRefs.has(podRefKey(selectedPod.namespace, selectedPod.name))) {
+        setSelectedPod(null);
+      }
+    }
+
+    setSelectedPodRefs((prev) => prev.filter((ref) => !successfulPods.some((pod) => podRefKey(pod.namespace, pod.name) === ref)));
+    await refreshAll();
+
+    if (failed.length > 0) {
+      setStatus(`${actionLabel} finished with ${failed.length} error(s). First error: ${failed[0].pod.namespace}/${failed[0].pod.name}: ${failed[0].message}`);
+      return;
+    }
+
+    setStatus(`${actionLabel} completed for ${podsToProcess.length} pod(s)`);
+  }
+
+  async function evictSelectedPods() {
+    const podsToProcess = [...selectedPods];
+    await runBatchPodAction('Evict', podsToProcess, async (pod) => {
+      await evictPodByRef(pod.namespace, pod.name);
+    });
+  }
+
+  async function deleteSelectedPods() {
+    const podsToProcess = [...selectedPods];
+    await runBatchPodAction('Delete', podsToProcess, async (pod) => {
+      await deletePodByRef(pod.namespace, pod.name);
+    });
   }
 
   async function openManifestTab(namespace, kind, name) {
@@ -1278,7 +1460,7 @@ export default function App() {
   async function openPodLogsTab(namespace, podName) {
     const id = `logs:pod:${namespace}:${podName}`;
     const title = `Logs Pod/${podName}`;
-    upsertTab({
+    const tab = {
       id,
       type: 'logs',
       logKind: 'pod',
@@ -1292,15 +1474,18 @@ export default function App() {
       showErrors: false,
       namespace,
       pod: podName,
-      tail: 400
-    });
-    await refreshLogTab(id, false, { forceScrollToBottom: true });
+      tail: 400,
+      canLoadOlder: true,
+      loadingOlder: false
+    };
+    upsertTab(tab);
+    await refreshLogTab(id, false, { forceScrollToBottom: true, tabOverride: tab });
   }
 
   async function openWorkloadLogsTab(namespace, kind, name) {
     const id = `logs:workload:${namespace}:${kind}:${name}`;
     const title = `Logs ${displayKind(kind)}/${name}`;
-    upsertTab({
+    const tab = {
       id,
       type: 'logs',
       logKind: 'workload',
@@ -1315,14 +1500,17 @@ export default function App() {
       namespace,
       kind,
       name,
-      tail: 300
-    });
-    await refreshLogTab(id, false, { forceScrollToBottom: true });
+      tail: 300,
+      canLoadOlder: true,
+      loadingOlder: false
+    };
+    upsertTab(tab);
+    await refreshLogTab(id, false, { forceScrollToBottom: true, tabOverride: tab });
   }
 
   async function refreshLogTab(tabId, silent = false, options = {}) {
-    const { forceScrollToBottom = false } = options;
-    const tab = bottomTabsRef.current.find((t) => t.id === tabId) || (activeBottomTab?.id === tabId ? activeBottomTab : null);
+    const { forceScrollToBottom = false, preserveScrollPosition = false, previousContent = '', tabOverride = null } = options;
+    const tab = tabOverride || bottomTabsRef.current.find((t) => t.id === tabId) || (activeBottomTab?.id === tabId ? activeBottomTab : null);
     if (!tab || tab.type !== 'logs') return;
     if (forceScrollToBottom) {
       scheduleLogsScrollToBottom();
@@ -1350,9 +1538,17 @@ export default function App() {
         });
         text = await api(`/api/workloadlogs?${params.toString()}`);
       }
-      upsertTab({ id: tabId, content: text, loading: false, error: '' }, false);
+      upsertTab({
+        id: tabId,
+        content: text,
+        loading: false,
+        loadingOlder: false,
+        canLoadOlder: preserveScrollPosition ? text !== previousContent : tab.canLoadOlder,
+        error: ''
+      }, false);
     } catch (err) {
-      upsertTab({ id: tabId, loading: false, error: err.message || String(err) }, false);
+      pendingLogPrependRef.current = null;
+      upsertTab({ id: tabId, loading: false, loadingOlder: false, error: err.message || String(err) }, false);
     }
   }
 
@@ -2160,6 +2356,12 @@ export default function App() {
               podsAutoRefreshSeconds={podsAutoRefreshSeconds}
               setPodsAutoRefreshSeconds={setPodsAutoRefreshSeconds}
               sortedPods={sortedPods}
+              selectedPodRefSet={selectedPodRefSet}
+              selectedPodCount={selectedPods.length}
+              togglePodRefSelection={togglePodRefSelection}
+              setPodRefsSelection={setPodRefsSelection}
+              selectedPodEvictPermission={selectedPodActionPermission('edit')}
+              selectedPodDeletePermission={selectedPodActionPermission('delete')}
               toggleSort={toggleSort}
               sortMark={sortMark}
               selectedPod={selectedPod}
@@ -2172,13 +2374,14 @@ export default function App() {
               safe={safe}
               openManifestTab={openManifestTab}
               openPodLogsTab={openPodLogsTab}
-              evictPodByRef={evictPodByRef}
-              setStatus={setStatus}
-              refreshAll={refreshAll}
-              deletePodByRef={deletePodByRef}
-              setSelectedPod={setSelectedPod}
               allAllowed={allAllowed}
               openPodExecTab={openPodExecTab}
+              evictPodByRef={evictPodByRef}
+              deletePodByRef={deletePodByRef}
+              setSelectedPod={setSelectedPod}
+              refreshAll={refreshAll}
+              deleteSelectedPods={deleteSelectedPods}
+              evictSelectedPods={evictSelectedPods}
             />
           )}
 
@@ -2536,6 +2739,7 @@ export default function App() {
           upsertTab={upsertTab}
           scheduleLogsScrollToBottom={scheduleLogsScrollToBottom}
           refreshLogTab={refreshLogTab}
+          handleLogsScroll={handleLogsScroll}
           logsOutputRef={logsOutputRef}
           logsEndRef={logsEndRef}
           applyEditTab={applyEditTab}

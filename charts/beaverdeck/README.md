@@ -1,6 +1,30 @@
 # BeaverDeck Helm Chart
 
-`beaverdeck` installs BeaverDeck, a lightweight Kubernetes operations panel for day-2 cluster work.
+`BeaverDeck` installs BeaverDeck, a lightweight Kubernetes operations panel for day-2 cluster work.
+From one web UI, BeaverDeck can inspect cluster resources, open manifests, stream and expand logs, run `exec` sessions in pods, and perform common operational actions such as restart, scale, delete, evict, drain, and uncordon.
+It also includes an Insights view aimed at fast operational triage: it surfaces warnings and health signals for workloads, nodes, storage, ingress, and resource pressure so operators can spot likely problems before drilling into raw Kubernetes objects and events.
+For GPU-backed clusters, Insights can also highlight visibility gaps and tracking signals (including GPU-related), helping operators confirm where capacity exists and whether the expected monitoring path is available.
+It is designed for operators who want fast visibility and common remediation workflows without switching between multiple tools for routine Kubernetes tasks.
+
+## What BeaverDeck Helps With
+
+![BeaverDeck Overview](https://raw.githubusercontent.com/arequs/beaverdeck/main/docs/images/overview.png)
+
+From one interface, BeaverDeck can help operators:
+
+- browse cluster objects such as pods, workloads, nodes, services, ingresses, config maps, secrets, PVCs, PVs, storage classes, CRDs, and events
+- inspect manifests as YAML and apply edits through the UI
+- stream pod and workload logs, including older log history when troubleshooting
+- open `exec` sessions into running pods
+- run common operational actions such as scale, restart, delete, evict, drain, and uncordon
+- review cluster health, warnings, and operational insights without jumping between multiple Kubernetes tools
+- keep actions auditable and access controlled with users, roles, and namespace-scoped permissions
+
+![BeaverDeck Insights](https://raw.githubusercontent.com/arequs/beaverdeck/main/docs/images/insights.png)
+
+The Insights section is intended as a first-stop troubleshooting surface.
+Instead of starting from raw events or manifests, operators can begin with summarized warnings and health checks across workloads, nodes, storage, ingress, and cluster resource pressure.
+On clusters with GPU nodes, Insights can also help validate GPU-related visibility and monitoring coverage so it is easier to confirm where GPU capacity exists and whether exporters and metrics paths are available.
 
 ## What This Chart Deploys
 
@@ -18,7 +42,7 @@ Recommendation: enable persistence from the start to keep your custom configurat
 
 ```bash
 helm upgrade --install beaverdeck oci://ghcr.io/arequs/charts/beaverdeck \
-  --version 2.0.0 \
+  --version 2.0.1 \
   --set persistence.enabled=true \
   --set persistence.size=1Gi \
   --set persistence.storageClass=standard \
@@ -63,49 +87,49 @@ ingress:
 
 | Value | Default | Description |
 | --- | --- | --- |
-| `nameOverride` | `""` | Override for the chart name portion of generated resource names. |
-| `fullnameOverride` | `""` | Full override for generated resource names. |
-| `namespaceOverride` | `""` | Override for the namespace used by rendered resources. Defaults to the Helm release namespace. |
-| `image.repository` | `arequs/beaverdeck` | Container image repository. |
-| `image.tag` | `1.2.1` | Container image tag. |
-| `image.pullPolicy` | `IfNotPresent` | Image pull policy. |
-| `listenAddr` | `:8080` | HTTP listen address passed to the container. |
-| `dataDir` | `/data` | Directory used by BeaverDeck to store SQLite data. |
-| `clusterName` | `Cluster name not set` | Cluster name shown in the UI header. |
-| `managedNamespace` | `""` | Namespace BeaverDeck treats as its managed namespace. If empty, the pod namespace is used. |
-| `allowAllNamespaces` | `true` | If `true`, BeaverDeck can operate across all namespaces allowed by Kubernetes RBAC. |
-| `podAnnotations` | `{}` | Extra pod annotations. |
-| `podLabels` | `{}` | Extra pod labels. |
-| `serviceAccount.create` | `true` | Create a dedicated ServiceAccount. |
-| `serviceAccount.name` | `""` | Override ServiceAccount name. If empty, the chart fullname is used. |
-| `serviceAccount.annotations` | `{}` | Extra ServiceAccount annotations. |
-| `rbac.create` | `true` | Create ClusterRole and ClusterRoleBinding for BeaverDeck. |
-| `rbac.clusterRoleName` | `""` | Override ClusterRole name. If empty, the chart fullname is used. |
-| `persistence.enabled` | `false` | Use a PersistentVolumeClaim instead of `emptyDir`. Strongly recommended for non-demo installations. |
-| `persistence.accessModes` | `["ReadWriteOnce"]` | PVC access modes. |
-| `persistence.size` | `1Gi` | PVC size request. |
-| `persistence.storageClass` | `default` | StorageClass name for the PVC. Replace with the class available in your cluster. |
-| `service.type` | `ClusterIP` | Kubernetes Service type. |
-| `service.port` | `80` | Service port. |
-| `service.targetPort` | `8080` | Container port exposed by BeaverDeck. |
-| `service.annotations` | `{}` | Extra Service annotations. |
-| `resources` | `{}` | Container resource requests and limits. |
-| `nodeSelector` | `{}` | Node selector for the pod. |
-| `tolerations` | `[]` | Pod tolerations. |
 | `affinity` | `{}` | Pod affinity rules. |
-| `livenessProbe.enabled` | `true` | Enable the liveness probe. |
-| `livenessProbe.path` | `/healthz` | Liveness probe HTTP path. |
-| `livenessProbe.initialDelaySeconds` | `10` | Initial delay before the liveness probe starts. |
-| `livenessProbe.periodSeconds` | `20` | Liveness probe period. |
-| `readinessProbe.enabled` | `true` | Enable the readiness probe. |
-| `readinessProbe.path` | `/healthz` | Readiness probe HTTP path. |
-| `readinessProbe.initialDelaySeconds` | `5` | Initial delay before the readiness probe starts. |
-| `readinessProbe.periodSeconds` | `10` | Readiness probe period. |
-| `ingress.enabled` | `false` | Render a single Ingress resource for BeaverDeck. |
-| `ingress.className` | `""` | Ingress class name. |
+| `allowAllNamespaces` | `true` | If `true`, BeaverDeck can operate across all namespaces allowed by Kubernetes RBAC. |
+| `clusterName` | `Cluster name not set` | Cluster name shown in the UI header. |
+| `dataDir` | `/data` | Directory used by BeaverDeck to store SQLite data. |
+| `extraEnv` | `[]` | Extra environment variables appended to the BeaverDeck container. |
+| `fullnameOverride` | `""` | Full override for generated resource names. |
+| `image.pullPolicy` | `IfNotPresent` | Image pull policy. |
+| `image.repository` | `arequs/beaverdeck` | Container image repository. |
+| `image.tag` | `1.3.1` | Container image tag. |
 | `ingress.annotations` | `{}` | Ingress annotations. |
+| `ingress.className` | `""` | Ingress class name. |
+| `ingress.enabled` | `false` | Render a single Ingress resource for BeaverDeck. |
 | `ingress.host` | `""` | Ingress host. Leave empty to omit host matching. |
 | `ingress.path` | `/` | Ingress path. |
 | `ingress.pathType` | `Prefix` | Ingress path type. |
 | `ingress.tls` | `[]` | Ingress TLS configuration. |
-| `extraEnv` | `[]` | Extra environment variables appended to the BeaverDeck container. |
+| `livenessProbe.enabled` | `true` | Enable the liveness probe. |
+| `livenessProbe.initialDelaySeconds` | `10` | Initial delay before the liveness probe starts. |
+| `livenessProbe.path` | `/healthz` | Liveness probe HTTP path. |
+| `livenessProbe.periodSeconds` | `20` | Liveness probe period. |
+| `listenAddr` | `:8080` | HTTP listen address passed to the container. |
+| `managedNamespace` | `""` | Namespace BeaverDeck treats as its managed namespace. If empty, the pod namespace is used. |
+| `nameOverride` | `""` | Override for the chart name portion of generated resource names. |
+| `namespaceOverride` | `""` | Override for the namespace used by rendered resources. Defaults to the Helm release namespace. |
+| `nodeSelector` | `{}` | Node selector for the pod. |
+| `persistence.accessModes` | `["ReadWriteOnce"]` | PVC access modes. |
+| `persistence.enabled` | `false` | Use a PersistentVolumeClaim instead of `emptyDir`. Strongly recommended for non-demo installations. |
+| `persistence.size` | `1Gi` | PVC size request. |
+| `persistence.storageClass` | `default` | StorageClass name for the PVC. Replace with the class available in your cluster. |
+| `podAnnotations` | `{}` | Extra pod annotations. |
+| `podLabels` | `{}` | Extra pod labels. |
+| `rbac.clusterRoleName` | `""` | Override ClusterRole name. If empty, the chart fullname is used. |
+| `rbac.create` | `true` | Create ClusterRole and ClusterRoleBinding for BeaverDeck. |
+| `readinessProbe.enabled` | `true` | Enable the readiness probe. |
+| `readinessProbe.initialDelaySeconds` | `5` | Initial delay before the readiness probe starts. |
+| `readinessProbe.path` | `/healthz` | Readiness probe HTTP path. |
+| `readinessProbe.periodSeconds` | `10` | Readiness probe period. |
+| `resources` | `{}` | Container resource requests and limits. |
+| `service.annotations` | `{}` | Extra Service annotations. |
+| `service.port` | `80` | Service port. |
+| `service.targetPort` | `8080` | Container port exposed by BeaverDeck. |
+| `service.type` | `ClusterIP` | Kubernetes Service type. |
+| `serviceAccount.annotations` | `{}` | Extra ServiceAccount annotations. |
+| `serviceAccount.create` | `true` | Create a dedicated ServiceAccount. |
+| `serviceAccount.name` | `""` | Override ServiceAccount name. If empty, the chart fullname is used. |
+| `tolerations` | `[]` | Pod tolerations. |

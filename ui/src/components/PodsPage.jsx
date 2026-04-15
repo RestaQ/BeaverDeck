@@ -1,5 +1,25 @@
-import React from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import ActionMenu from './ActionMenu.jsx';
+
+function podRefKey(namespace, name) {
+  return `${String(namespace || '').trim()}/${String(name || '').trim()}`;
+}
+
+function LogsIcon() {
+  return (
+    <svg className="pod-action-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path d="M3 3.5h10M3 8h10M3 12.5h6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ExecIcon() {
+  return (
+    <svg className="pod-action-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path d="M4 4.5 7.5 8 4 11.5M9.5 11.5H12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 export default function PodsPage({
   podSearch,
@@ -9,6 +29,12 @@ export default function PodsPage({
   podsAutoRefreshSeconds,
   setPodsAutoRefreshSeconds,
   sortedPods,
+  selectedPodRefSet,
+  selectedPodCount,
+  togglePodRefSelection,
+  setPodRefsSelection,
+  selectedPodEvictPermission,
+  selectedPodDeletePermission,
   toggleSort,
   sortMark,
   selectedPod,
@@ -21,17 +47,61 @@ export default function PodsPage({
   safe,
   openManifestTab,
   openPodLogsTab,
+  allAllowed,
+  openPodExecTab,
   evictPodByRef,
-  setStatus,
-  refreshAll,
   deletePodByRef,
   setSelectedPod,
-  allAllowed,
-  openPodExecTab
+  refreshAll,
+  deleteSelectedPods,
+  evictSelectedPods
 }) {
+  const selectAllRef = useRef(null);
+  const visiblePodRefs = useMemo(
+    () => sortedPods.map((pod) => podRefKey(pod.namespace, pod.name)),
+    [sortedPods]
+  );
+  const allVisibleSelected = visiblePodRefs.length > 0 && visiblePodRefs.every((ref) => selectedPodRefSet.has(ref));
+  const someVisibleSelected = visiblePodRefs.some((ref) => selectedPodRefSet.has(ref));
+
+  useEffect(() => {
+    if (!selectAllRef.current) {
+      return;
+    }
+    selectAllRef.current.indeterminate = someVisibleSelected && !allVisibleSelected;
+  }, [someVisibleSelected, allVisibleSelected]);
+
+  const podSelectionMode = selectedPodCount > 0;
+  const selectionDisabledCheck = podSelectionMode
+    ? { allowed: false, reason: 'Actions are disabled while pods are selected' }
+    : { allowed: true, reason: '' };
+
   return (
     <>
       <div className="toolbar fixed-toolbar">
+        {podSelectionMode ? <span className="small-hint">{selectedPodCount} selected</span> : null}
+        {podSelectionMode ? (
+          <button
+            type="button"
+            className="warn"
+            disabled={!selectedPodEvictPermission.allowed}
+            title={selectedPodEvictPermission.reason}
+            onClick={() => safe(evictSelectedPods)}
+          >
+            Evict
+          </button>
+        ) : null}
+        {podSelectionMode ? (
+          <button
+            type="button"
+            className="danger"
+            disabled={!selectedPodDeletePermission.allowed}
+            title={selectedPodDeletePermission.reason}
+            onClick={() => safe(deleteSelectedPods)}
+          >
+            Delete
+          </button>
+        ) : null}
         <input value={podSearch} onChange={(e) => setPodSearch(e.target.value)} placeholder="Search pods..." />
         <label className="toggle-row">
           <input
@@ -56,6 +126,16 @@ export default function PodsPage({
         <table>
           <thead>
             <tr>
+              <th>
+                <input
+                  ref={selectAllRef}
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  disabled={sortedPods.length === 0}
+                  onChange={(e) => setPodRefsSelection(sortedPods, e.target.checked)}
+                  aria-label={allVisibleSelected ? 'Unselect all visible pods' : 'Select all visible pods'}
+                />
+              </th>
               <th><button className="sort-btn" onClick={() => toggleSort('pods', 'name')}>Name {sortMark('pods', 'name')}</button></th>
               <th><button className="sort-btn" onClick={() => toggleSort('pods', 'namespace')}>Namespace {sortMark('pods', 'namespace')}</button></th>
               <th><button className="sort-btn" onClick={() => toggleSort('pods', 'phase')}>Status {sortMark('pods', 'phase')}</button></th>
@@ -63,81 +143,121 @@ export default function PodsPage({
               <th><button className="sort-btn" onClick={() => toggleSort('pods', 'restarts')}>Restarts {sortMark('pods', 'restarts')}</button></th>
               <th><button className="sort-btn" onClick={() => toggleSort('pods', 'node')}>Node {sortMark('pods', 'node')}</button></th>
               <th><button className="sort-btn" onClick={() => toggleSort('pods', 'age')}>Age {sortMark('pods', 'age')}</button></th>
-              <th>Actions</th>
+              <th className="actions-head-cell"><span className="table-head-label">Actions</span></th>
             </tr>
           </thead>
           <tbody>
-            {sortedPods.map((p) => (
-              <tr
-                key={`${p.namespace}/${p.name}`}
-                className={selectedPod?.namespace === p.namespace && selectedPod?.name === p.name ? 'active-row' : ''}
-                onClick={() => selectPod(p)}
-              >
-                <td>{p.name}</td>
-                <td>{p.namespace}</td>
-                <td>{p.phase}</td>
-                <td>
-                  <div className="ready-cell">
-                    <span>{p.ready}</span>
-                    {isDegradedReady(p.ready) ? (
+            {sortedPods.map((p) => {
+              const rowKey = podRefKey(p.namespace, p.name);
+              const rowSelected = selectedPodRefSet.has(rowKey);
+              const showPodWarning = isDegradedReady(p.ready) && String(p.phase || '').toLowerCase() !== 'succeeded';
+              const logsPermission = permissionInfo('pods', 'view', p.namespace);
+              const execPermission = allAllowed(
+                permissionInfo('pods', 'view', p.namespace),
+                permissionInfo('exec', 'edit', p.namespace),
+                String(p.phase || '').toLowerCase() === 'running' && !isDegradedReady(p.ready)
+                  ? { allowed: true, reason: '' }
+                  : { allowed: false, reason: 'Exec is disabled for pods that are not fully running' }
+              );
+
+              return (
+                <tr
+                  key={rowKey}
+                  className={
+                    podSelectionMode
+                      ? (rowSelected ? 'active-row' : '')
+                      : (selectedPod?.namespace === p.namespace && selectedPod?.name === p.name ? 'active-row' : '')
+                  }
+                  onClick={() => {
+                    if (!podSelectionMode) {
+                      selectPod(p);
+                    }
+                  }}
+                >
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={rowSelected}
+                      onChange={() => togglePodRefSelection(p)}
+                      aria-label={`Select ${p.namespace}/${p.name}`}
+                    />
+                  </td>
+                  <td>{p.name}</td>
+                  <td>{p.namespace}</td>
+                  <td>{p.phase}</td>
+                  <td>
+                    <div className="ready-cell">
+                      <span>{p.ready}</span>
+                      {showPodWarning ? (
+                        <button
+                          type="button"
+                          className="warning-indicator"
+                          title="Pod is not fully ready"
+                          onMouseEnter={(e) => {
+                            void showWarningPopover(e, { type: 'pod', key: `pod:${p.namespace}:${p.name}`, item: p });
+                          }}
+                          onMouseLeave={() => scheduleWarningPopoverHide(`pod:${p.namespace}:${p.name}`)}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          !
+                        </button>
+                      ) : null}
+                    </div>
+                  </td>
+                  <td>{p.restarts}</td>
+                  <td>{p.node || '-'}</td>
+                  <td>{p.age}</td>
+                  <td className="actions-cell">
+                    <div className="pod-inline-actions" onClick={(e) => e.stopPropagation()}>
                       <button
-                        className="warning-indicator"
-                        title="Pod is not fully ready"
-                        onMouseEnter={(e) => {
-                          void showWarningPopover(e, { type: 'pod', key: `pod:${p.namespace}:${p.name}`, item: p });
-                        }}
-                        onMouseLeave={() => scheduleWarningPopoverHide(`pod:${p.namespace}:${p.name}`)}
-                        onClick={(e) => e.stopPropagation()}
+                        type="button"
+                        className="pod-icon-button"
+                        aria-label="Open pod logs"
+                        disabled={!allAllowed(selectionDisabledCheck, logsPermission).allowed}
+                        title={allAllowed(selectionDisabledCheck, logsPermission).allowed ? 'Logs' : allAllowed(selectionDisabledCheck, logsPermission).reason}
+                        onClick={() => safe(() => openPodLogsTab(p.namespace, p.name))}
                       >
-                        !
+                        <LogsIcon />
                       </button>
-                    ) : null}
-                  </div>
-                </td>
-                <td>{p.restarts}</td>
-                <td>{p.node || '-'}</td>
-                <td>{p.age}</td>
-                <td className="actions-cell">
-                  <ActionMenu
-                    actions={[
-                      makeAction('Manifest', permissionInfo('pods', 'view', p.namespace), () => safe(() => openManifestTab(p.namespace, 'pod', p.name))),
-                      makeAction('Logs', permissionInfo('pods', 'view', p.namespace), () => safe(() => openPodLogsTab(p.namespace, p.name))),
-                      makeAction(
-                        'Evict',
-                        permissionInfo('pods', 'edit', p.namespace),
-                        () => safe(async () => {
-                          await evictPodByRef(p.namespace, p.name);
-                          setStatus(`Eviction requested for ${p.namespace}/${p.name}`);
-                          await refreshAll();
-                        })
-                      ),
-                      makeAction(
-                        'Delete',
-                        permissionInfo('pods', 'delete', p.namespace),
-                        () => safe(async () => {
-                          await deletePodByRef(p.namespace, p.name);
-                          if (selectedPod?.namespace === p.namespace && selectedPod?.name === p.name) {
-                            setSelectedPod(null);
-                          }
-                          await refreshAll();
-                        })
-                      ),
-                      makeAction(
-                        'Exec',
-                        allAllowed(
-                          permissionInfo('pods', 'view', p.namespace),
-                          permissionInfo('exec', 'edit', p.namespace),
-                          String(p.phase) === 'Running' && !isDegradedReady(p.ready)
-                            ? { allowed: true, reason: '' }
-                            : { allowed: false, reason: 'Exec is disabled for pods that are not fully running' }
-                        ),
-                        () => openPodExecTab(p.namespace, p.name)
-                      )
-                    ]}
-                  />
-                </td>
-              </tr>
-            ))}
+                      <button
+                        type="button"
+                        className="pod-icon-button"
+                        aria-label="Open pod exec"
+                        disabled={!allAllowed(selectionDisabledCheck, execPermission).allowed}
+                        title={allAllowed(selectionDisabledCheck, execPermission).allowed ? 'Exec' : allAllowed(selectionDisabledCheck, execPermission).reason}
+                        onClick={() => safe(() => openPodExecTab(p.namespace, p.name))}
+                      >
+                        <ExecIcon />
+                      </button>
+                      <ActionMenu
+                        actions={[
+                          makeAction('Manifest', allAllowed(selectionDisabledCheck, permissionInfo('pods', 'view', p.namespace)), () => safe(() => openManifestTab(p.namespace, 'pod', p.name))),
+                          makeAction(
+                            'Evict',
+                            allAllowed(selectionDisabledCheck, permissionInfo('pods', 'edit', p.namespace)),
+                            () => safe(async () => {
+                              await evictPodByRef(p.namespace, p.name);
+                              await refreshAll();
+                            })
+                          ),
+                          makeAction(
+                            'Delete',
+                            allAllowed(selectionDisabledCheck, permissionInfo('pods', 'delete', p.namespace)),
+                            () => safe(async () => {
+                              await deletePodByRef(p.namespace, p.name);
+                              if (selectedPod?.namespace === p.namespace && selectedPod?.name === p.name) {
+                                setSelectedPod(null);
+                              }
+                              await refreshAll();
+                            })
+                          )
+                        ]}
+                      />
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

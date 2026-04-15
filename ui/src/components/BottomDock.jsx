@@ -14,6 +14,7 @@ export default function BottomDock({
   upsertTab,
   scheduleLogsScrollToBottom,
   refreshLogTab,
+  handleLogsScroll,
   logsOutputRef,
   logsEndRef,
   applyEditTab,
@@ -112,7 +113,7 @@ export default function BottomDock({
                 </label>
                 <button onClick={() => safe(() => refreshLogTab(activeBottomTab.id, false, { forceScrollToBottom: true }))}>Refresh</button>
               </div>
-              <div className="logs-output-wrap" ref={logsOutputRef}>
+              <div className="logs-output-wrap" ref={logsOutputRef} onScroll={handleLogsScroll}>
                 <LogViewer
                   text={activeBottomTab?.content || ''}
                   search={activeBottomTab.search || ''}
@@ -122,6 +123,8 @@ export default function BottomDock({
                 />
                 <div ref={logsEndRef} />
               </div>
+              {activeBottomTab.loadingOlder ? <div className="small-hint">Loading older logs...</div> : null}
+              {activeBottomTab.canLoadOlder === false ? <div className="small-hint">Beginning of log reached.</div> : null}
             </div>
           )}
 

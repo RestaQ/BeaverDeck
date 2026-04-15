@@ -25,7 +25,7 @@ export default function LogViewer({
   }, [lines, query, showWarnings, showErrors]);
 
   return (
-    <pre className={`${className} log-block`}>
+    <div className={`${className} log-block`}>
       {filteredLines.map((line, idx) => {
         let lineClass = '';
         if (ERR_RE.test(line)) {
@@ -35,6 +35,6 @@ export default function LogViewer({
         }
         return <div key={idx} className={lineClass}>{line || '\u00A0'}</div>;
       })}
-    </pre>
+    </div>
   );
 }

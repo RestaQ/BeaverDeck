@@ -24,6 +24,10 @@ function ExecIcon() {
 export default function PodsPage({
   podSearch,
   setPodSearch,
+  podStatusFilter,
+  setPodStatusFilter,
+  availablePodStatuses,
+  podNameRegexError,
   podsAutoRefreshEnabled,
   setPodsAutoRefreshEnabled,
   podsAutoRefreshSeconds,
@@ -102,7 +106,13 @@ export default function PodsPage({
             Delete
           </button>
         ) : null}
-        <input value={podSearch} onChange={(e) => setPodSearch(e.target.value)} placeholder="Search pods..." />
+        <input value={podSearch} onChange={(e) => setPodSearch(e.target.value)} placeholder="Name regex..." />
+        <select value={podStatusFilter} onChange={(e) => setPodStatusFilter(e.target.value)}>
+          <option value="">All statuses</option>
+          {availablePodStatuses.map((status) => (
+            <option key={status} value={status}>{status}</option>
+          ))}
+        </select>
         <label className="toggle-row">
           <input
             type="checkbox"
@@ -120,6 +130,7 @@ export default function PodsPage({
           <option value="5">5s</option>
           <option value="15">15s</option>
         </select>
+        {podNameRegexError ? <span className="small-hint">Invalid regex: {podNameRegexError}</span> : null}
       </div>
 
       <div className="table-wrap pods-table-wrap">

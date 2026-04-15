@@ -2,15 +2,15 @@ apiVersion: v2
 name: beaverdeck
 description: Helm chart for BeaverDeck, a lightweight Kubernetes operations panel
 type: application
-version: 2.0.1
-appVersion: "1.3.1"
+version: 2.0.2
+appVersion: "1.3.2"
 home: https://github.com/arequs/beaverdeck
 icon: https://raw.githubusercontent.com/arequs/beaverdeck/main/ui/public/logo.png
 annotations:
   artifacthub.io/changes: |
     - kind: changed
-      description: "Improved pods operations UX with always-visible multi-select, batch actions, and compact row controls."
+      description: "Added pod filtering by name regex and status, with batch selection/actions scoped to the filtered result set."
     - kind: changed
-      description: "Pod and workload logs now load older entries on scroll-up and keep scroll position stable."
+      description: "Reduced navigation and button sizing across the UI for a denser operational layout."
     - kind: changed
-      description: "Cleaned up log rendering and pods table layout issues, including actions-column alignment."
+      description: "Removed the redundant pod namespace filter from the Pods toolbar in favor of existing namespace preselection."

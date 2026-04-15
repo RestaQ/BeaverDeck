@@ -193,6 +193,7 @@ export default function App() {
   const [pvSearch, setPVSearch] = useState('');
   const [podsAutoRefreshEnabled, setPodsAutoRefreshEnabled] = useState(true);
   const [podsAutoRefreshSeconds, setPodsAutoRefreshSeconds] = useState(15);
+  const [podStatusFilter, setPodStatusFilter] = useState('');
   const [selectedPod, setSelectedPod] = useState(null);
   const [selectedPodRefs, setSelectedPodRefs] = useState([]);
 
@@ -401,15 +402,41 @@ export default function App() {
     oidcConfig.client_secret.trim()
   );
 
+  const podNameRegex = podSearch.trim();
+  const podNameRegexError = useMemo(() => {
+    if (!podNameRegex) return '';
+    try {
+      // Validate user regex once and reuse it in filtering.
+      // eslint-disable-next-line no-new
+      new RegExp(podNameRegex, 'i');
+      return '';
+    } catch (err) {
+      return err.message || 'Invalid regex';
+    }
+  }, [podNameRegex]);
+  const availablePodStatuses = useMemo(
+    () => Array.from(new Set(pods.map((pod) => String(pod.phase || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [pods]
+  );
   const filteredPods = useMemo(() => {
-    const q = podSearch.trim().toLowerCase();
-    if (!q) return pods;
-    return pods.filter((p) => p.name.toLowerCase().includes(q));
-  }, [pods, podSearch]);
+    const nameRegex = podNameRegex && !podNameRegexError ? new RegExp(podNameRegex, 'i') : null;
+    return pods.filter((pod) => {
+      if (podStatusFilter && String(pod.phase || '') !== podStatusFilter) {
+        return false;
+      }
+      if (podNameRegexError) {
+        return false;
+      }
+      if (nameRegex && !nameRegex.test(String(pod.name || ''))) {
+        return false;
+      }
+      return true;
+    });
+  }, [pods, podStatusFilter, podNameRegex, podNameRegexError]);
   const selectedPodRefSet = useMemo(() => new Set(selectedPodRefs), [selectedPodRefs]);
   const selectedPods = useMemo(
-    () => pods.filter((pod) => selectedPodRefSet.has(podRefKey(pod.namespace, pod.name))),
-    [pods, selectedPodRefSet]
+    () => filteredPods.filter((pod) => selectedPodRefSet.has(podRefKey(pod.namespace, pod.name))),
+    [filteredPods, selectedPodRefSet]
   );
 
   function filterRowsByQuery(rows, query, fields) {
@@ -498,6 +525,14 @@ export default function App() {
       return next.length === prev.length ? prev : next;
     });
   }, [pods]);
+
+  useEffect(() => {
+    const visibleRefs = new Set(filteredPods.map((pod) => podRefKey(pod.namespace, pod.name)));
+    setSelectedPodRefs((prev) => {
+      const next = prev.filter((ref) => visibleRefs.has(ref));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [filteredPods]);
 
   useEffect(() => {
     setSelectedPodRefs([]);
@@ -2351,6 +2386,10 @@ export default function App() {
             <PodsPage
               podSearch={podSearch}
               setPodSearch={setPodSearch}
+              podStatusFilter={podStatusFilter}
+              setPodStatusFilter={setPodStatusFilter}
+              availablePodStatuses={availablePodStatuses}
+              podNameRegexError={podNameRegexError}
               podsAutoRefreshEnabled={podsAutoRefreshEnabled}
               setPodsAutoRefreshEnabled={setPodsAutoRefreshEnabled}
               podsAutoRefreshSeconds={podsAutoRefreshSeconds}
